@@ -3,7 +3,7 @@ const express = require("express");
 const db = require("../db");
 const router = new express.Router();
 
-const { NotFoundError } = require("../expressError");
+const { NotFoundError, BadRequestError } = require("../expressError");
 
 /** GET /users: get list of companies*/
 router.get("/", async function (req, res, next) {
@@ -36,16 +36,24 @@ router.post("/", async function (req, res, next) {
 router.get("/:code", async function (req, res, next) {
 
     const results = await db.query(
-        `SELECT code, name, description from companies
+        `SELECT code, name, description, i.id FROM companies as c
+        JOIN invoices AS i ON c.code = i.comp_code
          WHERE code = $1`, [req.params.code]
     );
 
-    const company = results.rows[0];
-    if (!company) {
-        //throw 400 error instead
-        return next(new NotFoundError())
+    const companyResults = results.rows;
+    console.log(companyResults)
+    //ASK ABOUT THIS
+    if (companyResults.length === 0) {
+        return next(new BadRequestError())
     }
-    return res.json({company});
+    let invoices = [];
+    companyResults.forEach(c => {
+        invoices.push(c.id)
+    })
+    const {code, name, description} = companyResults[0]
+    
+    return res.json({company: {code, name, description, invoices: invoices}});
   });
 
 router.put("/:code", async function (req, res, next) {
